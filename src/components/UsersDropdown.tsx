@@ -8,7 +8,7 @@ type UsersDropdownProps = {
 
 function UsersDropdown({ users, onSelectUser, disabled }: UsersDropdownProps){
   return (
-    <div className="flex">
+    <div className="flex items-center justify-center gap-4 flex-wrap">
       <label className="" htmlFor="usersList">Filter By User</label>
       <select
         className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg p-2.5"

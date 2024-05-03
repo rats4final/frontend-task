@@ -76,9 +76,9 @@ export default function App() {
     });
   }, [pageNumber, pageSize, selectedUser, searchQuery, postId, totalPages]);
   return (
-    <main>
-      <section>
-        <div className="flex">
+    <main className="p-10 flex flex-col gap-4">
+      <section className="flex flex-col gap-2">
+        <div className="flex items-center justify-center gap-4 flex-wrap">
           <SearchField
             disabled={!!selectedUser}
             onChange={(event) => {
@@ -92,20 +92,20 @@ export default function App() {
             onSelectUser={handleUserChange}
           />
         </div>
+        {!selectedUser && !searchQuery ? (
+          <PaginationControls
+            pageNumber={pageNumber}
+            totalPages={totalPages}
+            onPrevButtonClick={handlePrevButtonClick}
+            onNextButtonClick={handleNextButtonClick}
+            onPageSizeChange={handlePageSizeChange}
+            defaultPageSize={pageSize}
+          />
+        ) : (
+          ""
+        )}
         <PostsTable posts={posts} onPostClicked={handlePostClicked} />
       </section>
-      {!selectedUser && !searchQuery ? (
-        <PaginationControls
-          pageNumber={pageNumber}
-          totalPages={totalPages}
-          onPrevButtonClick={handlePrevButtonClick}
-          onNextButtonClick={handleNextButtonClick}
-          onPageSizeChange={handlePageSizeChange}
-          defaultPageSize={pageSize}
-        />
-      ) : (
-        ""
-      )}
       <section>
         {postComments ? <CommentsList postComments={postComments} /> : null}
       </section>
