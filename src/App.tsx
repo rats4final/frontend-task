@@ -1,221 +1,113 @@
-import axios from "axios";
 import { useEffect, useState } from "react";
-
-type Posts = {
-  userId: number;
-  id: number;
-  title: string;
-  body: string;
-};
-
-type Users = {
-  id: number;
-  name: string;
-};
-
-type Comments = {
-  postId: number
-  id: number
-  name: string
-  email: string
-  body: string
-}
+import { Post, Users, Comments } from "./utils/types";
+import { fetchPostById, fetchPosts, fetchUsers } from "./data/data";
+import UsersDropdown from "./components/UsersDropdown";
+import SearchField from "./components/SearchField";
+import PostsTable from "./components/PostsTable";
+import PaginationControls from "./components/PaginationControls";
+import CommentsList from "./components/CommentsList";
 
 export default function App() {
-  const [posts, setPosts] = useState<Posts[]>([]);
-  const [pageNumber, setPageNumber] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
-  const [totalPages, setTotalPages] = useState(0);
+  const [posts, setPosts] = useState<Post[]>([]);
   const [postId, setPostId] = useState<number | null>(null);
-
-  const [users, setUsers] = useState<Users[]>([]);
-
-  const [selectedUser, setSelectedUser] = useState<number | null>(null);
-  const [searchQuery, setSearchQuery] = useState<string | null>(null);
   const [postComments, setPostComments] = useState<Comments[]>([]);
 
-  async function fetchUsers() {
-    try {
-      const data = await axios.get(
-        "https://jsonplaceholder.typicode.com/users"
-      );
-      const fetchedUsers = data.data;
-      setUsers(fetchedUsers);
-    } catch (error) {
-      console.log(error);
-    }
-  }
+  const [users, setUsers] = useState<Users[]>([]);
+  const [selectedUser, setSelectedUser] = useState<number | null>(null);
+
+  const [pageNumber, setPageNumber] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const [totalPages, setTotalPages] = useState<number>(0);
+  const [searchQuery, setSearchQuery] = useState<string | null>(null);
 
   const totalPosts = 100;
-  //aca sabemos cuantos posts hay pero para una app real habria que usar otra
-  //implementacion
+  //aca sabemos cuantos posts hay pero para algoreal habria que usar otra implementacion
 
-  async function fetchPostById(id:number| null) {
-    try {
-      if (id !== null) {
-        const data = await axios.get(`https://jsonplaceholder.typicode.com/posts/${id}/comments`)
-        const fetchedComments = data.data;
-        setPostComments(fetchedComments);
-      }
-    } catch (error) {
-      console.log(error)
-    }
+  function handleUserChange(userId: number) {
+    setSelectedUser(userId);
+    setPageNumber(1);
   }
 
-  async function fetchPosts(
-    pageNumber: number,
-    pageSize: number,
-    userId: number | null,
-    searchQuery: string | null,
-  ) {
-    let url = `https://jsonplaceholder.typicode.com/posts?_page=${pageNumber}&_limit=${pageSize}`;
-    if (userId) {
-      url = `https://jsonplaceholder.typicode.com/posts?userId=${userId}`;
-    }
-    if (searchQuery) {
-      url = `https://jsonplaceholder.typicode.com/posts?q=${searchQuery}`
-    }
-
-    setTotalPages(Math.ceil(totalPosts / pageSize));
-    //si la division del total de posts entre el tamanio de pagina es inexacta,
-    //significa que aun quedan posts para una pagina mas
-    //const postsOnFinalPage = totalPosts % pageSize;
-    //numero total de posts que sobran en la ultima pagina
-    try {
-      const data = await axios.get(url);
-      //intente usar _per_page segun su docu pero al parecer no funciona
-      //igual probe con postman
-      const fetchedPosts = data.data;
-      console.log(fetchedPosts);
-      setPosts(fetchedPosts);
-    } catch (error) {
-      console.log(error);
-    }
+  function handlePostClicked(item: Post) {
+    const newUrl = `${window.location.origin}/${item.id}`;
+    window.history.pushState(item.id, "", newUrl);
+    setPostId(item.id);
+    fetchPostById(item.id);
   }
 
-  console.log(pageNumber);
+  function handlePrevButtonClick(pageNumber: number) {
+    setPageNumber(pageNumber - 1);
+  }
+
+  function handleNextButtonClick(pageNumber: number) {
+    setPageNumber(pageNumber + 1);
+  }
+
+  function handlePageSizeChange(pageSize: number) {
+    setPageSize(pageSize);
+  }
 
   useEffect(() => {
     const windowPath = window.location.pathname;
     const validatedPath = /^\/\d+$/.test(windowPath);
 
     if (validatedPath) {
-      const postIdInUrl = windowPath.split('/')[1];
+      const postIdInUrl = windowPath.split("/")[1];
       console.log(postIdInUrl);
-      setPostId(parseInt(postIdInUrl))
-      fetchPostById(postId);
+      setPostId(parseInt(postIdInUrl));
+      fetchPostById(postId).then((fetchedPostById) => {
+        setPostComments(fetchedPostById);
+      });
     }
 
+    fetchUsers().then((fetchedUsers) => {
+      setUsers(fetchedUsers);
+    });
 
-    fetchUsers();
-    fetchPosts(pageNumber, pageSize, selectedUser, searchQuery);
-  }, [pageNumber, pageSize, selectedUser, searchQuery, postId]);
+    fetchPosts(
+      pageNumber,
+      pageSize,
+      selectedUser,
+      searchQuery,
+      totalPosts
+    ).then((data) => {
+      setPosts(data?.fetchedPosts);
+      setTotalPages(data?.totalPages ?? 0);
+    });
+  }, [pageNumber, pageSize, selectedUser, searchQuery, postId, totalPages]);
   return (
     <main>
       <section>
-        <div>
-          <div>
-            <label htmlFor="searchField">Search</label>
-            <input disabled={!!selectedUser} type="search" id="searchField" onChange={(event) => {
+        <div className="flex">
+          <SearchField
+            disabled={!!selectedUser}
+            onChange={(event) => {
               setSearchQuery(event.target.value);
-              setPageNumber(1)
-            }}/>
-          </div>
-          <div>
-            <label htmlFor="usersList">Filter By User</label>
-            <select
-              disabled={!!searchQuery}
-              id="usersList"
-              onChange={(event) => {
-                const selectedUserId = parseInt(event.target.value);
-                setSelectedUser(selectedUserId);
-                setPageNumber(1);
-              }}
-            >
-              <option value="">
-                Select a User
-              </option>
-              {users.map((item) => (
-                <option key={item.id} value={item.id}>
-                  {item.name}
-                </option>
-              ))}
-            </select>
-          </div>
+              setPageNumber(1);
+            }}
+          />
+          <UsersDropdown
+            users={users}
+            disabled={!!searchQuery}
+            onSelectUser={handleUserChange}
+          />
         </div>
-        <table>
-          <thead>
-            <tr>
-              <th>Title</th>
-              <th>Body</th>
-              <th>User ID</th>
-            </tr>
-          </thead>
-          <tbody>
-            {posts.map((item) => (
-              <tr key={item.id} onClick={() => {
-                const newUrl = `${window.location.origin}/${item.id}`;
-                window.history.pushState(item.id, "", newUrl);
-                setPostId(item.id)
-                fetchPostById(item.id)
-              }}>
-                <td>{item.title}</td>
-                <td>{item.body}</td>
-                <td>{item.userId}</td>
-              </tr>
-            ))}
-          </tbody>
-          <tfoot></tfoot>
-        </table>
+        <PostsTable posts={posts} onPostClicked={handlePostClicked} />
       </section>
-      {! selectedUser && ! searchQuery ? (
-        <div>
-          <button
-            onClick={() => {
-              if (pageNumber > 1) {
-                setPageNumber(pageNumber - 1);
-              }
-            }}
-          >
-            Previous
-          </button>
-          <button
-            disabled={pageNumber === totalPages}
-            onClick={() => {
-              setPageNumber(pageNumber + 1);
-            }}
-          >
-            Next
-          </button>
-          <div>You are on page: {pageNumber}</div>
-          <div>
-            <label htmlFor="pageSize">Per Page</label>
-            <input
-              onChange={(event) => {
-                event.preventDefault();
-                setPageSize(parseInt(event.target.value));
-              }}
-              value={pageSize}
-              type="number"
-              id="pageSize"
-              min={1}
-            />
-          </div>
-        </div>
+      {!selectedUser && !searchQuery ? (
+        <PaginationControls
+          pageNumber={pageNumber}
+          totalPages={totalPages}
+          onPrevButtonClick={handlePrevButtonClick}
+          onNextButtonClick={handleNextButtonClick}
+          onPageSizeChange={handlePageSizeChange}
+          defaultPageSize={pageSize}
+        />
       ) : (
         ""
       )}
       <section>
-        {postComments ? (
-        <div>
-          {postComments.map((item) => (
-            <div key={item.id}>
-              <div>{item.name}</div>
-              <div>{item.email}</div>
-              <div>{item.body}</div>
-            </div>
-          ))}
-        </div>): null}
+        {postComments ? <CommentsList postComments={postComments} /> : null}
       </section>
     </main>
   );
